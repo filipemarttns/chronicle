@@ -1,0 +1,17 @@
+FROM python:3.14-slim
+
+WORKDIR /app
+
+COPY pyproject.toml README.md LICENSE ./
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+RUN pip install --no-cache-dir \
+    fastapi "uvicorn[standard]" pydantic httpx \
+    -e packages/domain \
+    -e packages/application \
+    -e packages/adapters \
+    -e apps/api
+
+EXPOSE 8000
+CMD ["uvicorn", "chronicle_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
