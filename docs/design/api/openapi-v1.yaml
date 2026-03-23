@@ -1,0 +1,991 @@
+openapi: 3.1.0
+info:
+  title: Chronicle API
+  version: 1.0.0-design
+  summary: Developer Memory Engine HTTP API
+  description: |
+    Versioned JSON API for event ingestion, timeline replay, semantic search,
+    knowledge graph queries, analytics, consent, and multi-device sync.
+
+    This document is the Phase 3 design contract. Implementation must match
+    or update this file in the same change set.
+  contact:
+    name: Chronicle Maintainers
+    url: https://github.com/chronicle-dev/chronicle
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://localhost:8000
+    description: Local reference deployment
+tags:
+  - name: Events
+  - name: Sessions
+  - name: Timelines
+  - name: Search
+  - name: Graph
+  - name: Analytics
+  - name: Sync
+  - name: Consent
+  - name: Workspaces
+  - name: System
+paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /ready:
+    get:
+      tags: [System]
+      operationId: getReady
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Dependencies reachable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "503":
+          description: Not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/events:
+    post:
+      tags: [Events]
+      operationId: ingestEvent
+      summary: Ingest a single event
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/CorrelationIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventIngestRequest"
+      responses:
+        "201":
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventIngestResponse"
+        "200":
+          description: Idempotent replay of existing event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventIngestResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /v1/events:batch:
+    post:
+      tags: [Events]
+      operationId: ingestEventBatch
+      summary: Ingest a batch of events
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventBatchRequest"
+      responses:
+        "200":
+          description: Per-item results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventBatchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /v1/events/{event_id}:
+    get:
+      tags: [Events]
+      operationId: getEvent
+      summary: Fetch a single event by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EventId"
+      responses:
+        "200":
+          description: Event envelope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventRecord"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/sessions:
+    get:
+      tags: [Sessions]
+      operationId: listSessions
+      summary: List sessions for a workspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdQuery"
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Session page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionPage"
+
+  /v1/sessions/{session_id}:
+    get:
+      tags: [Sessions]
+      operationId: getSession
+      summary: Get session summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/timelines/replay:
+    get:
+      tags: [Timelines]
+      operationId: replayTimeline
+      summary: Replay timeline items
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdQuery"
+        - name: session_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Timeline page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimelinePage"
+
+  /v1/search:
+    post:
+      tags: [Search]
+      operationId: searchMemory
+      summary: Semantic and hybrid search
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses:
+        "200":
+          description: Search hits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /v1/graph/nodes/{node_id}/neighbors:
+    get:
+      tags: [Graph]
+      operationId: graphNeighbors
+      summary: Graph neighborhood traversal
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: node_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: depth
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Neighborhood
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphNeighborhood"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/analytics/summary:
+    get:
+      tags: [Analytics]
+      operationId: analyticsSummary
+      summary: Analytics summary for a time range
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdQuery"
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Summary metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /v1/sync/push:
+    post:
+      tags: [Sync]
+      operationId: syncPush
+      summary: Push local events to peer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPushRequest"
+      responses:
+        "200":
+          description: Push result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPushResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/sync/pull:
+    post:
+      tags: [Sync]
+      operationId: syncPull
+      summary: Pull events since cursor
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPullRequest"
+      responses:
+        "200":
+          description: Event batch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPullResponse"
+
+  /v1/consent:
+    get:
+      tags: [Consent]
+      operationId: getConsent
+      summary: Get consent policy for workspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdQuery"
+      responses:
+        "200":
+          description: Consent policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentPolicy"
+    put:
+      tags: [Consent]
+      operationId: putConsent
+      summary: Update consent categories
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentUpdateRequest"
+      responses:
+        "200":
+          description: Updated policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentPolicy"
+
+  /v1/workspaces:
+    post:
+      tags: [Workspaces]
+      operationId: createWorkspace
+      summary: Create workspace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceCreateRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+
+  parameters:
+    EventId:
+      name: event_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    WorkspaceIdQuery:
+      name: workspace_id
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 200
+    CorrelationIdHeader:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden or consent required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: Rate limited
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    ReadyResponse:
+      type: object
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, correlation_id]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+            correlation_id:
+              type: string
+
+    EventIngestRequest:
+      type: object
+      required: [type, schema_version, occurred_at, source, actor_id, workspace_id, device_id, idempotency_key, payload]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        schema_version:
+          type: integer
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        source:
+          type: string
+        actor_id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        idempotency_key:
+          type: string
+          minLength: 8
+          maxLength: 200
+        correlation_id:
+          type: string
+        causation_id:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+
+    EventIngestResponse:
+      type: object
+      required: [event_id, store_offset, created]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        store_offset:
+          type: integer
+          minimum: 0
+        created:
+          type: boolean
+
+    EventBatchRequest:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/EventIngestRequest"
+
+    EventBatchResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [index, status]
+            properties:
+              index:
+                type: integer
+              status:
+                type: string
+                enum: [created, existing, conflict, rejected]
+              event_id:
+                type: string
+                format: uuid
+              store_offset:
+                type: integer
+              error:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    EventRecord:
+      allOf:
+        - $ref: "#/components/schemas/EventIngestRequest"
+        - type: object
+          required: [event_id, received_at, store_offset]
+          properties:
+            received_at:
+              type: string
+              format: date-time
+            store_offset:
+              type: integer
+            redaction_meta:
+              type: object
+              additionalProperties: true
+
+    Session:
+      type: object
+      required: [id, workspace_id, device_id, started_at, algorithm_version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        algorithm_version:
+          type: string
+        last_activity_at:
+          type: string
+          format: date-time
+
+    SessionPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Session"
+        next_cursor:
+          type: string
+          nullable: true
+
+    TimelineItem:
+      type: object
+      required: [event_id, type, occurred_at]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        source:
+          type: string
+        summary:
+          type: string
+        payload_preview:
+          type: object
+          additionalProperties: true
+
+    TimelinePage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineItem"
+        next_cursor:
+          type: string
+          nullable: true
+
+    SearchRequest:
+      type: object
+      required: [query, workspace_id]
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        query:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+        filters:
+          $ref: "#/components/schemas/SearchFilters"
+
+    SearchFilters:
+      type: object
+      properties:
+        time_range:
+          type: string
+          description: Relative range such as 7d, 30d, or absolute ISO interval
+        sources:
+          type: array
+          items:
+            type: string
+        types:
+          type: array
+          items:
+            type: string
+        session_id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+
+    SearchHit:
+      type: object
+      required: [score, chunk_id, citations]
+      properties:
+        score:
+          type: number
+        chunk_id:
+          type: string
+          format: uuid
+        snippet:
+          type: string
+        citations:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    SearchResponse:
+      type: object
+      required: [hits]
+      properties:
+        hits:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchHit"
+        model_id:
+          type: string
+
+    GraphNode:
+      type: object
+      required: [id, node_type, external_key]
+      properties:
+        id:
+          type: string
+          format: uuid
+        node_type:
+          type: string
+        external_key:
+          type: string
+        props:
+          type: object
+          additionalProperties: true
+
+    GraphEdge:
+      type: object
+      required: [id, from_node_id, to_node_id, edge_type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        from_node_id:
+          type: string
+          format: uuid
+        to_node_id:
+          type: string
+          format: uuid
+        edge_type:
+          type: string
+        evidence_event_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    GraphNeighborhood:
+      type: object
+      required: [center, nodes, edges]
+      properties:
+        center:
+          $ref: "#/components/schemas/GraphNode"
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+
+    AnalyticsSummary:
+      type: object
+      required: [workspace_id, from, to, metrics]
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        metrics:
+          type: object
+          additionalProperties:
+            type: number
+
+    SyncPushRequest:
+      type: object
+      required: [workspace_id, device_id, events]
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventIngestRequest"
+
+    SyncPushResponse:
+      type: object
+      required: [accepted, conflicts]
+      properties:
+        accepted:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventIngestResponse"
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncConflict"
+
+    SyncConflict:
+      type: object
+      required: [conflict_id, idempotency_key]
+      properties:
+        conflict_id:
+          type: string
+          format: uuid
+        idempotency_key:
+          type: string
+
+    SyncPullRequest:
+      type: object
+      required: [workspace_id, device_id, cursor]
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        cursor:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+
+    SyncPullResponse:
+      type: object
+      required: [events, next_cursor]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventRecord"
+        next_cursor:
+          type: integer
+
+    ConsentCategory:
+      type: string
+      enum: [editor, terminal, git, browser, assistant, build]
+
+    ConsentPolicy:
+      type: object
+      required: [workspace_id, categories]
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        categories:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    ConsentUpdateRequest:
+      type: object
+      required: [workspace_id, categories]
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        categories:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    WorkspaceCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+
+    Workspace:
+      type: object
+      required: [id, name, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
