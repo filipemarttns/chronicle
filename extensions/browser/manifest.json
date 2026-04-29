@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Chronicle",
+  "version": "0.1.0",
+  "description": "Opt-in research trail capture for the Chronicle Developer Memory Engine",
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Chronicle"
+  }
+}
