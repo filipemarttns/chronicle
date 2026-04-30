@@ -1,0 +1,39 @@
+{
+  "name": "chronicle",
+  "displayName": "Chronicle",
+  "description": "Capture engineering activity for the Chronicle Developer Memory Engine",
+  "version": "0.1.0",
+  "publisher": "chronicle-dev",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Chronicle",
+      "properties": {
+        "chronicle.apiBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Chronicle API base URL"
+        },
+        "chronicle.token": {
+          "type": "string",
+          "default": "",
+          "description": "Bearer token for Chronicle API"
+        },
+        "chronicle.capture.editor": {
+          "type": "boolean",
+          "default": false,
+          "description": "Capture editor activity"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "test": "node ./out/test/runTest.js"
+  }
+}
