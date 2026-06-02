@@ -19,3 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release candidate packaging for the documentation and core domain foundation
 - Docker API image and Compose reference service
 - OpenAPI-aligned `/v1` routes for events, timeline, search, and consent
+
+### Fixed
+- Timeline serialization for slotted dataclass read models
+
