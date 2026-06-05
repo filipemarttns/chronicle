@@ -51,3 +51,7 @@ Benchmarks live under benchmark suites, not as flaky CI unit tests. See [perform
 - [ ] Added/updated tests match risk
 - [ ] CI job list covers the touched languages
 - [ ] Documented manual steps only when automation is impossible (with reason)
+
+## Release candidate
+RC builds must keep the API smoke suite green before tagging.
+
