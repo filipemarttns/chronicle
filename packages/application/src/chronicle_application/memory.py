@@ -58,3 +58,5 @@ class MemoryIndex:
     def extend(self, envelopes: Iterable[EventEnvelope]) -> None:
         for envelope in envelopes:
             self.index_event(envelope)
+
+
