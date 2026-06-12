@@ -12,3 +12,6 @@ Design targets for capacity planning and release gates. Not yet claimed as measu
 | Ingest ack p95 (local) | ≤ 50 ms | continuous |
 
 Release candidates that regress >20% on gated suites vs previous RC require maintainer acknowledgement in the release PR.
+
+Release managers may waive a gate only with written rationale in the release PR.
+
