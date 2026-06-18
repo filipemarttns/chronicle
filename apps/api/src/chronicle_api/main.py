@@ -216,3 +216,5 @@ def reset_state() -> None:
     _memory = MemoryIndex()
     _ingest = IngestService(_store, _outbox, _consent)
     _session_projector = SessionProjector(_sessions)
+
+
