@@ -61,3 +61,6 @@ See ADR-0010. Clients must send `Idempotency-Key` header or body field as specif
 ## Rate limiting
 
 Ingest endpoints are rate-limited per token/device. `429` responses include `Retry-After` when possible.
+
+Cursor pagination is mandatory for timeline replay at scale.
+
