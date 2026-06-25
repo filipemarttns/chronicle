@@ -152,3 +152,6 @@ When something is missing, the correct outcome is often an issue labeled as a ro
 - [DEVELOPMENT.md](DEVELOPMENT.md)
 - [RELEASE.md](RELEASE.md)
 - [MAINTAINERS.md](MAINTAINERS.md)
+
+Early RC operators should pin image digests when publishing internal mirrors.
+
