@@ -287,3 +287,6 @@ Architecture-significant work needs an ADR draft before or with the implementati
 - GitHub Discussions for “how should I implement X?”
 
 If the local guide drifts from scripts in the repo, trust executable scripts and open a docs PR.
+
+The in-memory API profile is suitable for extension development before Postgres adapters land.
+
