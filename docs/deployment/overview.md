@@ -35,3 +35,6 @@ Twelve-factor env vars; see [../../DEVELOPMENT.md](../../DEVELOPMENT.md). Produc
 7. Smoke ingest + search
 
 Details in [disaster-recovery.md](disaster-recovery.md) and [../../RELEASE.md](../../RELEASE.md).
+
+Compose remains the reference path through the 0.1.0 release candidates.
+
