@@ -23,3 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Timeline serialization for slotted dataclass read models
 
+
+## [0.1.0-rc.1] - 2026-07-15
+
+Release candidate for early self-hosted operators.
+
