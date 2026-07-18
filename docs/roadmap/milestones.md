@@ -52,3 +52,6 @@ flowchart TD
 | 6 | Optimization, docs polish, CI/CD, RC |
 
 This matches the root roadmap and informs historical contribution planning.
+
+Post-RC work prioritizes Postgres-backed event store adapters without changing domain ports.
+
