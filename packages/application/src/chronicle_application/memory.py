@@ -38,12 +38,25 @@ class MemoryIndex:
         )
 
     def search(self, query: str, *, limit: int = 10) -> list[SearchHit]:
+        import re
+
         if not self._chunks:
             return []
+
+        def tokens(text: str) -> set[str]:
+            return {t for t in re.split(r"[^a-z0-9_.]+", text.lower()) if t}
+
         query_vec = self.embedder.embed(query.lower())
+        query_tokens = tokens(query)
         scored: list[SearchHit] = []
         for chunk_id, text, citations, vector in self._chunks:
-            score = cosine_similarity(query_vec, vector)
+            cosine = cosine_similarity(query_vec, vector)
+            overlap = (
+                len(query_tokens.intersection(tokens(text))) / max(len(query_tokens), 1)
+                if query_tokens
+                else 0.0
+            )
+            score = max(cosine, overlap)
             if score <= 0:
                 continue
             scored.append(
