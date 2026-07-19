@@ -302,5 +302,3 @@ Primary steward: **Filipe Martins**.
 
 Chronicle records the work. You keep the understanding.
 
-<!-- docs index: see docs/README.md for ADRs, design, and standards -->
-
