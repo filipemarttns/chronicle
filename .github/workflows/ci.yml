@@ -16,7 +16,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install pytest fastapi uvicorn pydantic httpx "sqlalchemy>=2.0" "psycopg[binary]" alembic celery redis
+          pip install pytest fastapi uvicorn pydantic httpx "sqlalchemy>=2.0" "psycopg[binary]" pgvector alembic celery redis
           pip install -e packages/domain -e packages/application -e packages/adapters -e apps/api
       - name: Test
         env:

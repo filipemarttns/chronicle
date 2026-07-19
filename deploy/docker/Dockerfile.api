@@ -14,7 +14,7 @@ ENV PYTHONPATH=/app/packages/domain/src:/app/packages/application/src:/app/packa
 
 RUN pip install --no-cache-dir \
     fastapi "uvicorn[standard]" pydantic httpx \
-    "sqlalchemy>=2.0" "psycopg[binary]>=3.2" alembic celery redis \
+    "sqlalchemy>=2.0" "psycopg[binary]>=3.2" pgvector alembic celery redis \
     -e packages/domain \
     -e packages/application \
     -e packages/adapters \
