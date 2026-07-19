@@ -62,3 +62,12 @@ class ClockPort(Protocol):
 
 class IdGeneratorPort(Protocol):
     def new_uuid(self) -> Any: ...
+
+
+class EmbeddingPort(Protocol):
+    """Produce dense vectors for memory indexing and query embedding."""
+
+    model_id: str
+    dims: int
+
+    def embed(self, text: str) -> list[float]: ...
