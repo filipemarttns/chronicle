@@ -11,6 +11,12 @@
   "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "chronicle.showStatus",
+        "title": "Chronicle: Show Status"
+      }
+    ],
     "configuration": {
       "title": "Chronicle",
       "properties": {
@@ -28,6 +34,21 @@
           "type": "boolean",
           "default": false,
           "description": "Capture editor activity"
+        },
+        "chronicle.workspaceId": {
+          "type": "string",
+          "default": "",
+          "description": "Workspace UUID used when emitting events"
+        },
+        "chronicle.actorId": {
+          "type": "string",
+          "default": "",
+          "description": "Actor UUID for emitted events"
+        },
+        "chronicle.deviceId": {
+          "type": "string",
+          "default": "",
+          "description": "Device UUID for emitted events"
         }
       }
     }

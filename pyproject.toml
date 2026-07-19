@@ -40,6 +40,7 @@ pythonpath = [
   "packages/adapters/src",
   "apps/api/src",
   "apps/worker/src",
+  "apps/mcp/src",
 ]
 testpaths = ["packages", "apps", "tests"]
 

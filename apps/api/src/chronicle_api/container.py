@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -154,6 +155,77 @@ class AppContainer:
         if self._outbox_projector is None:
             return 0
         return self._outbox_projector.process_batch(limit=limit)
+
+    def list_sessions(self, workspace_id: UUID) -> list[Any]:
+        from chronicle_adapters.persistence.repositories import SqlAlchemySessionRepository
+        from chronicle_domain.session.session import Session as DomainSession
+
+        if self.mode == "postgres" and self._session_factory is not None:
+            session = self._session_factory()
+            try:
+                return SqlAlchemySessionRepository(session).list_for_workspace(
+                    WorkspaceId(workspace_id)
+                )
+            finally:
+                session.close()
+        return self.sessions.list_for_workspace(WorkspaceId(workspace_id))
+
+    def analytics_summary(
+        self, workspace_id: UUID, from_time: datetime, to_time: datetime
+    ) -> Any:
+        from chronicle_application.analytics import summarize_sessions
+
+        sessions = [
+            s
+            for s in self.list_sessions(workspace_id)
+            if s.started_at >= from_time and s.started_at <= to_time
+        ]
+        items = self.replay(workspace_id, limit=5000, after_offset=0)
+        window_items = [i for i in items if from_time <= i.occurred_at <= to_time]
+        types = {i.type for i in window_items}
+        return summarize_sessions(
+            workspace_id=str(workspace_id),
+            from_time=from_time,
+            to_time=to_time,
+            sessions=sessions,
+            event_count=len(window_items),
+            unique_types=len(types),
+        )
+
+    def sync_push(self, commands: list[IngestEventCommand]) -> Any:
+        from uuid import uuid4
+
+        from chronicle_application.ingest import IdempotencyConflictError
+        from chronicle_application.sync import SyncConflict, SyncPushResult
+
+        accepted: list[IngestResult] = []
+        conflicts: list[SyncConflict] = []
+        for command in commands:
+            try:
+                accepted.append(self.ingest(command))
+            except IdempotencyConflictError:
+                conflicts.append(
+                    SyncConflict(conflict_id=uuid4(), idempotency_key=command.idempotency_key)
+                )
+        return SyncPushResult(accepted=accepted, conflicts=conflicts)
+
+    def sync_pull(
+        self, workspace_id: UUID, cursor: int, *, limit: int = 100
+    ) -> tuple[list[Any], int]:
+        if self.mode == "postgres" and self._session_factory is not None:
+            from chronicle_adapters.persistence.event_store import SqlAlchemyEventStore
+
+            session = self._session_factory()
+            try:
+                store = SqlAlchemyEventStore(session)
+                rows = store.read_from(WorkspaceId(workspace_id), StoreOffset(cursor), limit)
+                next_cursor = rows[-1][1].value if rows else cursor
+                return rows, next_cursor
+            finally:
+                session.close()
+        rows = self.store.read_from(WorkspaceId(workspace_id), StoreOffset(cursor), limit)
+        next_cursor = rows[-1][1].value if rows else cursor
+        return rows, next_cursor
 
     def readiness(self) -> dict[str, Any]:
         checks = {"mode": self.mode}

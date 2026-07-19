@@ -1,0 +1,22 @@
+{
+  "productName": "Chronicle",
+  "version": "0.1.0",
+  "identifier": "dev.chronicle.desktop",
+  "build": {
+    "frontendDist": "../ui",
+    "devUrl": "http://localhost:3000"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Chronicle",
+        "width": 1100,
+        "height": 720,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

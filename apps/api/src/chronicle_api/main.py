@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from chronicle_api.container import AppContainer, get_container, reset_container_for_tests
@@ -60,6 +60,19 @@ class SearchRequest(BaseModel):
 class ConsentUpdateRequest(BaseModel):
     workspace_id: UUID
     categories: dict[str, bool]
+
+
+class SyncPushRequest(BaseModel):
+    workspace_id: UUID
+    device_id: UUID
+    events: list[EventIngestRequest]
+
+
+class SyncPullRequest(BaseModel):
+    workspace_id: UUID
+    device_id: UUID
+    cursor: int = Field(ge=0)
+    limit: int = Field(default=100, ge=1, le=500)
 
 
 def container_dep() -> AppContainer:
@@ -196,6 +209,115 @@ def put_consent(
         "workspace_id": str(body.workspace_id),
         "categories": {k.value: v for k, v in policy.categories.items()},
     }
+
+
+@app.get("/v1/sessions")
+def list_sessions(
+    workspace_id: UUID,
+    container: AppContainer = Depends(container_dep),
+) -> dict[str, Any]:
+    sessions = container.list_sessions(workspace_id)
+    return {
+        "items": [
+            {
+                "id": str(s.id),
+                "workspace_id": str(s.workspace_id),
+                "device_id": str(s.device_id),
+                "started_at": s.started_at.isoformat(),
+                "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+                "algorithm_version": s.algorithm_version,
+                "last_activity_at": s.last_activity_at.isoformat(),
+            }
+            for s in sessions
+        ],
+        "next_cursor": None,
+    }
+
+
+@app.get("/v1/analytics/summary")
+def analytics_summary(
+    workspace_id: UUID,
+    container: AppContainer = Depends(container_dep),
+    from_time: datetime = Query(..., alias="from"),
+    to_time: datetime = Query(..., alias="to"),
+) -> dict[str, Any]:
+    summary = container.analytics_summary(workspace_id, from_time, to_time)
+    return {
+        "workspace_id": summary.workspace_id,
+        "from": summary.from_time.isoformat(),
+        "to": summary.to_time.isoformat(),
+        "metrics": summary.metrics,
+    }
+
+
+@app.post("/v1/sync/push")
+def sync_push(
+    body: SyncPushRequest,
+    container: AppContainer = Depends(container_dep),
+) -> dict[str, Any]:
+    commands = [
+        IngestEventCommand(
+            type=event.type,
+            schema_version=event.schema_version,
+            occurred_at=event.occurred_at,
+            source=event.source,
+            actor_id=event.actor_id,
+            workspace_id=body.workspace_id,
+            device_id=body.device_id,
+            idempotency_key=event.idempotency_key,
+            payload=event.payload,
+            event_id=event.event_id,
+            correlation_id=event.correlation_id,
+            causation_id=event.causation_id,
+        )
+        for event in body.events
+    ]
+    result = container.sync_push(commands)
+    return {
+        "accepted": [
+            {
+                "event_id": item.event_id,
+                "store_offset": item.store_offset,
+                "created": item.created,
+            }
+            for item in result.accepted
+        ],
+        "conflicts": [
+            {
+                "conflict_id": str(conflict.conflict_id),
+                "idempotency_key": conflict.idempotency_key,
+            }
+            for conflict in result.conflicts
+        ],
+    }
+
+
+@app.post("/v1/sync/pull")
+def sync_pull(
+    body: SyncPullRequest,
+    container: AppContainer = Depends(container_dep),
+) -> dict[str, Any]:
+    rows, next_cursor = container.sync_pull(
+        body.workspace_id, body.cursor, limit=body.limit
+    )
+    events = []
+    for envelope, offset in rows:
+        events.append(
+            {
+                "event_id": str(envelope.event_id),
+                "type": envelope.type.value,
+                "schema_version": envelope.schema_version.value,
+                "occurred_at": envelope.occurred_at.isoformat(),
+                "source": envelope.source.value,
+                "actor_id": str(envelope.actor_id),
+                "workspace_id": str(envelope.workspace_id),
+                "device_id": str(envelope.device_id),
+                "idempotency_key": envelope.idempotency_key.value,
+                "payload": dict(envelope.payload),
+                "store_offset": offset.value,
+            }
+        )
+    return {"events": events, "next_cursor": next_cursor}
 
 
 @app.post("/v1/admin/outbox/process")

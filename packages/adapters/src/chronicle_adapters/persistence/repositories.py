@@ -83,6 +83,14 @@ class SqlAlchemySessionRepository:
         )
         return self._to_domain(row) if row else None
 
+    def list_for_workspace(self, workspace_id: WorkspaceId) -> list[DomainSession]:
+        rows = self._session.scalars(
+            select(SessionRow)
+            .where(SessionRow.workspace_id == workspace_id.value)
+            .order_by(SessionRow.started_at.desc())
+        ).all()
+        return [self._to_domain(row) for row in rows]
+
     @staticmethod
     def _to_domain(row: SessionRow) -> DomainSession:
         return DomainSession(

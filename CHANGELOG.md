@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Celery worker task to drain outbox projections
 - Next.js console pages for timeline replay and search
 - Docker Compose services for Postgres, Redis, API, worker, and web
+- Sessions, analytics summary, and sync push/pull API routes
+- MCP tool surface (`search_memory`, `get_timeline`, `get_session_summary`)
+- VS Code extension HTTP event emission
+- Tauri desktop control-plane stub
 
 ### Changed
 - Ingest path projects session/timeline/memory inline when `CHRONICLE_SYNC_PROJECT=true`

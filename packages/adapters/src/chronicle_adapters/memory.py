@@ -111,6 +111,13 @@ class InMemorySessionRepository:
                 return session
         return None
 
+    def list_for_workspace(self, workspace_id: WorkspaceId) -> list[Session]:
+        return [
+            session
+            for session in self._sessions.values()
+            if session.workspace_id == workspace_id
+        ]
+
 
 @dataclass
 class SystemClock:
