@@ -120,6 +120,31 @@ class InMemorySessionRepository:
 
 
 @dataclass
+class InMemoryCredentialStore:
+    _by_hash: dict[str, Any] = field(default_factory=dict)
+
+    def save_issued(self, issued: Any) -> None:
+        self._by_hash[issued.token_hash] = issued
+
+    def find_by_raw_token(self, raw_token: str, service: Any) -> Any | None:
+        from chronicle_application.auth import CredentialRecord, hash_token
+
+        token_hash = hash_token(raw_token, pepper=service._pepper)
+        issued = self._by_hash.get(token_hash)
+        if issued is None:
+            return None
+        return CredentialRecord(
+            credential_id=issued.credential_id,
+            workspace_id=issued.workspace_id,
+            actor_id=issued.actor_id,
+            token_hash=issued.token_hash,
+            label=issued.label,
+            created_at=issued.created_at,
+            revoked_at=None,
+        )
+
+
+@dataclass
 class SystemClock:
     def now(self) -> datetime:
         return datetime.now(timezone.utc)
