@@ -1,8 +1,4 @@
-"""Naive local memory index for semantic-ish search (token overlap).
-
-Production uses pgvector embeddings; this provides a deterministic local
-fallback for tests and early milestones.
-"""
+"""Local memory index with hashing embeddings."""
 
 from __future__ import annotations
 
@@ -10,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Iterable
 from uuid import UUID
 
+from chronicle_application.embeddings import HashingEmbedder, cosine_similarity
 from chronicle_domain.capture.envelope import EventEnvelope
 
 
@@ -21,29 +18,34 @@ class SearchHit:
     citations: tuple[UUID, ...]
 
 
+def event_text(envelope: EventEnvelope) -> str:
+    return (
+        f"{envelope.type.value} "
+        + " ".join(f"{k}={v}" for k, v in envelope.payload.items() if isinstance(v, (str, int)))
+    ).lower()
+
+
 @dataclass
 class MemoryIndex:
-    _chunks: list[tuple[UUID, str, tuple[UUID, ...]]] = field(default_factory=list)
+    embedder: HashingEmbedder = field(default_factory=HashingEmbedder)
+    _chunks: list[tuple[UUID, str, tuple[UUID, ...], list[float]]] = field(default_factory=list)
 
     def index_event(self, envelope: EventEnvelope) -> None:
-        text = f"{envelope.type.value} " + " ".join(
-            f"{k}={v}" for k, v in envelope.payload.items() if isinstance(v, (str, int))
+        text = event_text(envelope)
+        vector = self.embedder.embed(text)
+        self._chunks.append(
+            (envelope.event_id.value, text, (envelope.event_id.value,), vector)
         )
-        self._chunks.append((envelope.event_id.value, text.lower(), (envelope.event_id.value,)))
 
     def search(self, query: str, *, limit: int = 10) -> list[SearchHit]:
-        import re
-
-        def tokens(text: str) -> set[str]:
-            return {t for t in re.split(r"[^a-z0-9_.]+", text.lower()) if t}
-
-        query_tokens = tokens(query)
+        if not self._chunks:
+            return []
+        query_vec = self.embedder.embed(query.lower())
         scored: list[SearchHit] = []
-        for chunk_id, text, citations in self._chunks:
-            overlap = query_tokens.intersection(tokens(text))
-            if not overlap:
+        for chunk_id, text, citations, vector in self._chunks:
+            score = cosine_similarity(query_vec, vector)
+            if score <= 0:
                 continue
-            score = len(overlap) / max(len(query_tokens), 1)
             scored.append(
                 SearchHit(
                     chunk_id=chunk_id,
@@ -58,5 +60,3 @@ class MemoryIndex:
     def extend(self, envelopes: Iterable[EventEnvelope]) -> None:
         for envelope in envelopes:
             self.index_event(envelope)
-
-
