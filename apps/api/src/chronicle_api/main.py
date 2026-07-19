@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -9,37 +11,23 @@ from uuid import UUID, uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from chronicle_adapters.memory import (
-    InMemoryConsentPolicyStore,
-    InMemoryEventStore,
-    InMemoryOutbox,
-    InMemorySessionRepository,
-)
-from chronicle_application.ingest import (
-    IdempotencyConflictError,
-    IngestEventCommand,
-    IngestService,
-)
-from chronicle_application.memory import MemoryIndex
-from chronicle_application.session_projection import SessionProjector
-from chronicle_application.timeline import TimelineProjector
-from chronicle_domain.identity.consent import ConsentCategory
-from chronicle_domain.shared.ids import ConsentDenied, DomainValidationError, WorkspaceId
+from chronicle_api.container import AppContainer, get_container, reset_container_for_tests
+from chronicle_application.ingest import IdempotencyConflictError, IngestEventCommand
+from chronicle_domain.shared.ids import ConsentDenied, DomainValidationError
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    get_container()
+    yield
+
 
 app = FastAPI(
     title="Chronicle API",
     version="0.1.0",
     summary="Developer Memory Engine HTTP API",
+    lifespan=lifespan,
 )
-
-_store = InMemoryEventStore()
-_outbox = InMemoryOutbox()
-_consent = InMemoryConsentPolicyStore()
-_sessions = InMemorySessionRepository()
-_timeline = TimelineProjector()
-_memory = MemoryIndex()
-_ingest = IngestService(_store, _outbox, _consent)
-_session_projector = SessionProjector(_sessions)
 
 
 class EventIngestRequest(BaseModel):
@@ -74,8 +62,8 @@ class ConsentUpdateRequest(BaseModel):
     categories: dict[str, bool]
 
 
-def get_ingest_service() -> IngestService:
-    return _ingest
+def container_dep() -> AppContainer:
+    return get_container()
 
 
 @app.get("/health")
@@ -84,14 +72,14 @@ def health() -> dict[str, str]:
 
 
 @app.get("/ready")
-def ready() -> dict[str, Any]:
-    return {"status": "ready", "checks": {"event_store": "ok", "mode": "in_memory"}}
+def ready(container: AppContainer = Depends(container_dep)) -> dict[str, Any]:
+    return container.readiness()
 
 
 @app.post("/v1/events", response_model=EventIngestResponse)
 def ingest_event(
     body: EventIngestRequest,
-    service: IngestService = Depends(get_ingest_service),
+    container: AppContainer = Depends(container_dep),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> EventIngestResponse:
     key = idempotency_key or body.idempotency_key
@@ -110,39 +98,40 @@ def ingest_event(
         causation_id=body.causation_id,
     )
     try:
-        result = service.ingest(command)
+        result = container.ingest(command)
     except ConsentDenied as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={
-            "error": {
-                "code": "consent_required",
-                "message": str(exc),
-                "correlation_id": body.correlation_id or str(uuid4()),
-            }
-        }) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {
+                    "code": "consent_required",
+                    "message": str(exc),
+                    "correlation_id": body.correlation_id or str(uuid4()),
+                }
+            },
+        ) from exc
     except IdempotencyConflictError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-            "error": {
-                "code": "idempotency_conflict",
-                "message": str(exc),
-                "correlation_id": body.correlation_id or str(uuid4()),
-            }
-        }) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": {
+                    "code": "idempotency_conflict",
+                    "message": str(exc),
+                    "correlation_id": body.correlation_id or str(uuid4()),
+                }
+            },
+        ) from exc
     except DomainValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={
-            "error": {
-                "code": "validation_failed",
-                "message": str(exc),
-                "correlation_id": body.correlation_id or str(uuid4()),
-            }
-        }) from exc
-
-    from chronicle_domain.shared.ids import EventId, StoreOffset
-
-    envelope = _store.get(EventId(result.event_id))
-    if envelope is not None and result.created:
-        session = _session_projector.apply(envelope)
-        _timeline.apply(envelope, StoreOffset(result.store_offset), session.id.value)
-        _memory.index_event(envelope)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": {
+                    "code": "validation_failed",
+                    "message": str(exc),
+                    "correlation_id": body.correlation_id or str(uuid4()),
+                }
+            },
+        ) from exc
 
     return EventIngestResponse(
         event_id=result.event_id,
@@ -156,10 +145,9 @@ def replay_timeline(
     workspace_id: UUID,
     limit: int = 50,
     after_offset: int = 0,
+    container: AppContainer = Depends(container_dep),
 ) -> dict[str, Any]:
-    from dataclasses import asdict
-
-    items = _timeline.replay(WorkspaceId(workspace_id), limit=limit, after_offset=after_offset)
+    items = container.replay(workspace_id, limit=limit, after_offset=after_offset)
     return {
         "items": [asdict(item) for item in items],
         "next_cursor": str(items[-1].store_offset) if items else None,
@@ -167,8 +155,11 @@ def replay_timeline(
 
 
 @app.post("/v1/search")
-def search_memory(body: SearchRequest) -> dict[str, Any]:
-    hits = _memory.search(body.query, limit=body.limit)
+def search_memory(
+    body: SearchRequest,
+    container: AppContainer = Depends(container_dep),
+) -> dict[str, Any]:
+    hits = container.search(body.workspace_id, body.query, limit=body.limit)
     return {
         "hits": [
             {
@@ -184,8 +175,11 @@ def search_memory(body: SearchRequest) -> dict[str, Any]:
 
 
 @app.get("/v1/consent")
-def get_consent(workspace_id: UUID) -> dict[str, Any]:
-    policy = _consent.get(WorkspaceId(workspace_id))
+def get_consent(
+    workspace_id: UUID,
+    container: AppContainer = Depends(container_dep),
+) -> dict[str, Any]:
+    policy = container.get_consent(workspace_id)
     return {
         "workspace_id": str(workspace_id),
         "categories": {k.value: v for k, v in policy.categories.items()},
@@ -193,28 +187,28 @@ def get_consent(workspace_id: UUID) -> dict[str, Any]:
 
 
 @app.put("/v1/consent")
-def put_consent(body: ConsentUpdateRequest) -> dict[str, Any]:
-    policy = _consent.get(WorkspaceId(body.workspace_id))
-    for name, enabled in body.categories.items():
-        policy.set_category(ConsentCategory(name), enabled)
-    _consent.save(policy)
+def put_consent(
+    body: ConsentUpdateRequest,
+    container: AppContainer = Depends(container_dep),
+) -> dict[str, Any]:
+    policy = container.put_consent(body.workspace_id, body.categories)
     return {
         "workspace_id": str(body.workspace_id),
         "categories": {k.value: v for k, v in policy.categories.items()},
     }
 
 
+@app.post("/v1/admin/outbox/process")
+def process_outbox(
+    limit: int = 50,
+    container: AppContainer = Depends(container_dep),
+) -> dict[str, int]:
+    """Drain outbox synchronously (useful without Celery in local postgres mode)."""
+
+    return {"processed": container.process_outbox(limit=limit)}
+
+
 def reset_state() -> None:
     """Test helper to reset process-global in-memory state."""
 
-    global _store, _outbox, _consent, _sessions, _timeline, _memory, _ingest, _session_projector
-    _store = InMemoryEventStore()
-    _outbox = InMemoryOutbox()
-    _consent = InMemoryConsentPolicyStore()
-    _sessions = InMemorySessionRepository()
-    _timeline = TimelineProjector()
-    _memory = MemoryIndex()
-    _ingest = IngestService(_store, _outbox, _consent)
-    _session_projector = SessionProjector(_sessions)
-
-
+    reset_container_for_tests()

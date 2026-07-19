@@ -8,10 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- In-memory ingest, timeline replay, and token-overlap search for local development
-- Consent API and category-gated capture enforcement
-- VS Code and browser extension skeletons
-- CI workflow for Python tests
+- PostgreSQL persistence adapters for events, outbox, consent, sessions, timeline, and memory chunks
+- Alembic initial schema migration (`0001_initial`)
+- API dependency container with `CHRONICLE_STORE=memory|postgres`
+- Celery worker task to drain outbox projections
+- Next.js console pages for timeline replay and search
+- Docker Compose services for Postgres, Redis, API, worker, and web
+
+### Changed
+- Ingest path projects session/timeline/memory inline when `CHRONICLE_SYNC_PROJECT=true`
+
+### Fixed
+- Timeline serialization for slotted dataclass read models
 
 ## [0.1.0-rc.1] - 2026-07-15
 

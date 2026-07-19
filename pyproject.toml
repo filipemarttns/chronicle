@@ -11,6 +11,11 @@ dependencies = [
   "uvicorn[standard]>=0.32.0",
   "pydantic>=2.10.0",
   "httpx>=0.28.0",
+  "sqlalchemy>=2.0.36",
+  "psycopg[binary]>=3.2.0",
+  "alembic>=1.14.0",
+  "celery>=5.4.0",
+  "redis>=5.2.0",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +39,7 @@ pythonpath = [
   "packages/application/src",
   "packages/adapters/src",
   "apps/api/src",
+  "apps/worker/src",
 ]
 testpaths = ["packages", "apps", "tests"]
 

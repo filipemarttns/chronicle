@@ -1,12 +1,24 @@
-/**
- * Chronicle web console placeholder.
- * Timeline and search views bind to the /v1 API once the Next.js app is scaffolded fully.
- */
+import { apiBase } from "@/lib/api";
+
 export default function HomePage() {
   return (
     <main>
       <h1>Chronicle</h1>
-      <p>Developer Memory Engine console</p>
+      <p className="lead">
+        Developer Memory Engine console. Capture flows into the event log; timeline and
+        search read from projected memory.
+      </p>
+      <section className="panel">
+        <p className="meta">
+          API base: <code>{apiBase()}</code>
+        </p>
+        <p className="meta ok">Local-first · consent-scoped · rebuildable projections</p>
+        <p style={{ marginTop: "1.25rem" }}>
+          <a href="/timeline">Open timeline</a>
+          {" · "}
+          <a href="/search">Search memory</a>
+        </p>
+      </section>
     </main>
   );
 }

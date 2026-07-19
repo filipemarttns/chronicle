@@ -2,12 +2,19 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-COPY pyproject.toml README.md LICENSE ./
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md LICENSE alembic.ini ./
 COPY packages ./packages
 COPY apps/api ./apps/api
+COPY apps/worker ./apps/worker
+
+ENV PYTHONPATH=/app/packages/domain/src:/app/packages/application/src:/app/packages/adapters/src:/app/apps/api/src:/app/apps/worker/src
 
 RUN pip install --no-cache-dir \
     fastapi "uvicorn[standard]" pydantic httpx \
+    "sqlalchemy>=2.0" "psycopg[binary]>=3.2" alembic celery redis \
     -e packages/domain \
     -e packages/application \
     -e packages/adapters \

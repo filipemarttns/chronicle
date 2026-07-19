@@ -3,7 +3,12 @@ name = "chronicle-adapters"
 version = "0.1.0"
 description = "Chronicle infrastructure adapters"
 requires-python = ">=3.14"
-dependencies = ["chronicle-domain", "chronicle-application"]
+dependencies = [
+  "chronicle-domain",
+  "chronicle-application",
+  "sqlalchemy>=2.0.36",
+  "psycopg[binary]>=3.2.0",
+]
 
 [build-system]
 requires = ["hatchling"]
