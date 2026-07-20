@@ -106,13 +106,30 @@ Common variables (names illustrative; see `.env.example` when published):
 | Variable | Purpose |
 | --- | --- |
 | `CHRONICLE_ENV` | `local` \| `test` \| `production` |
+| `CHRONICLE_STORE` | `memory` \| `postgres` |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `REDIS_URL` | Redis connection string |
-| `CHRONICLE_AUTH_MODE` | `dev` \| `token` \| `oidc` |
-| `CHRONICLE_TOKEN` | Bearer token for local clients |
-| `EMBEDDING_PROVIDER` | Local model selection |
+| `CHRONICLE_AUTH_MODE` | `dev` (open) \| `token` (Bearer) |
+| `CHRONICLE_BOOTSTRAP_TOKEN` | One-time bootstrap secret to issue API tokens |
+| `CHRONICLE_AUTH_PEPPER` | Pepper mixed into stored token hashes |
+| `EMBEDDING_PROVIDER` | `hashing` (default, CI-safe) |
+| `CHRONICLE_EMBEDDING_DIMS` | Vector size (default `384`) |
 | `LOG_LEVEL` | `INFO` by default |
-| `CONSENT_DEFAULTS` | Baseline capture consent flags |
+
+### Auth (token mode)
+
+With `CHRONICLE_AUTH_MODE=token`, protected routes require `Authorization: Bearer <token>`.
+
+Issue a workspace credential using the bootstrap header:
+
+```bash
+curl -s -X POST http://localhost:8000/v1/auth/tokens \
+  -H "Content-Type: application/json" \
+  -H "X-Chronicle-Bootstrap: $CHRONICLE_BOOTSTRAP_TOKEN" \
+  -d '{"workspace_id":"<uuid>","actor_id":"<uuid>","label":"local"}'
+```
+
+Use the returned `token` on subsequent calls. Tokens are stored hashed (SHA-256 + pepper); the raw value is shown once.
 
 Development auth must never be copied into production deployments.
 
@@ -148,7 +165,7 @@ Autogenerate is a starting point, not an authority—edit for correctness.
 
 ```bash
 curl -X POST http://localhost:8000/v1/events \
-  -H "Authorization: Bearer $CHRONICLE_TOKEN" \
+  -H "Authorization: Bearer $CHRONICLE_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d @./scripts/fixtures/sample_event.json
 ```

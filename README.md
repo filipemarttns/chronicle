@@ -181,7 +181,7 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for host-native workflows, database migrati
 
 ```bash
 curl -X POST http://localhost:8000/v1/events \
-  -H "Authorization: Bearer $CHRONICLE_TOKEN" \
+  -H "Authorization: Bearer $CHRONICLE_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "editor.file.opened",
@@ -195,11 +195,13 @@ curl -X POST http://localhost:8000/v1/events \
   }'
 ```
 
+Issue `$CHRONICLE_API_TOKEN` via `POST /v1/auth/tokens` with `X-Chronicle-Bootstrap` when `CHRONICLE_AUTH_MODE=token` (see [DEVELOPMENT.md](DEVELOPMENT.md)). In `dev` mode, auth is open for local iteration.
+
 ### Example: semantic search
 
 ```bash
 curl -X POST http://localhost:8000/v1/search \
-  -H "Authorization: Bearer $CHRONICLE_TOKEN" \
+  -H "Authorization: Bearer $CHRONICLE_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "pagination bug in events list endpoint",
