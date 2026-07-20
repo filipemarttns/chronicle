@@ -76,3 +76,16 @@ def test_issue_and_use_token() -> None:
         headers={"Authorization": f"Bearer {token}"},
     )
     assert other.status_code == 403
+
+
+def test_cors_allows_local_web_origin() -> None:
+    client = TestClient(app)
+    res = client.options(
+        "/health",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert res.status_code in {200, 204}
+    assert res.headers.get("access-control-allow-origin") == "http://localhost:3000"

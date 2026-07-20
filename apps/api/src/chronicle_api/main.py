@@ -8,7 +8,10 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+import os
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from chronicle_api.auth import Principal, enforce_workspace, require_principal
@@ -28,6 +31,22 @@ app = FastAPI(
     version="0.1.0",
     summary="Developer Memory Engine HTTP API",
     lifespan=lifespan,
+)
+
+_cors_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CHRONICLE_CORS_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
