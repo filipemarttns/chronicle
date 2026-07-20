@@ -1,0 +1,14 @@
+{
+  "type": "editor.file.opened",
+  "schema_version": 1,
+  "occurred_at": "2026-07-20T14:22:01Z",
+  "source": "vscode",
+  "actor_id": "22222222-2222-2222-2222-222222222222",
+  "workspace_id": "11111111-1111-1111-1111-111111111111",
+  "device_id": "33333333-3333-3333-3333-333333333333",
+  "idempotency_key": "sample-event-fixture-0001",
+  "payload": {
+    "path": "services/memory/src/indexer.py",
+    "language": "python"
+  }
+}

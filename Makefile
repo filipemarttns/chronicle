@@ -1,4 +1,4 @@
-.PHONY: test lint typecheck run-api run-worker migrate
+.PHONY: test lint typecheck run-api run-worker migrate smoke
 
 test:
 	python -m pytest -q
@@ -20,3 +20,6 @@ run-worker:
 
 migrate:
 	alembic upgrade head
+
+smoke:
+	python scripts/smoke_api.py

@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it using these metadata.
+title: "Chronicle: Developer Memory Engine"
+type: software
+authors:
+  - family-names: Martins
+    given-names: Filipe
+    email: filipemarttns@gmail.com
+repository-code: "https://github.com/filipemarttns/chronicle"
+url: "https://github.com/filipemarttns/chronicle"
+abstract: >-
+  Chronicle is a local-first developer memory engine that records engineering
+  activity as events and exposes timeline replay and semantic search.
+license: MIT
+version: 0.1.0-rc.1
+date-released: "2026-07-15"
