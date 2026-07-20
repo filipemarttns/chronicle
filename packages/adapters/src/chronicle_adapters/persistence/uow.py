@@ -13,6 +13,7 @@ from chronicle_adapters.persistence.repositories import (
     SqlAlchemySessionRepository,
     SqlAlchemyTimelineStore,
 )
+from chronicle_application.embeddings import HashingEmbedder
 from chronicle_application.ingest import IngestEventCommand, IngestResult, IngestService
 from chronicle_application.session_projection import SessionProjector
 from chronicle_domain.shared.ids import EventId, StoreOffset
@@ -23,14 +24,16 @@ class SqlAlchemyUnitOfWork:
     """Binds repositories to a single SQLAlchemy session/transaction."""
 
     session: Session
+    embedder: HashingEmbedder | None = None
 
     def __post_init__(self) -> None:
+        embedder = self.embedder or HashingEmbedder()
         self.events = SqlAlchemyEventStore(self.session)
         self.outbox = SqlAlchemyOutbox(self.session)
         self.consent = SqlAlchemyConsentStore(self.session)
         self.sessions = SqlAlchemySessionRepository(self.session)
         self.timeline = SqlAlchemyTimelineStore(self.session)
-        self.memory = SqlAlchemyMemoryIndex(self.session)
+        self.memory = SqlAlchemyMemoryIndex(self.session, embedder=embedder, use_pgvector=True)
 
     def commit(self) -> None:
         self.session.commit()
@@ -42,14 +45,21 @@ class SqlAlchemyUnitOfWork:
 class PostgresIngestGateway:
     """Ingest through a short-lived unit of work, then optionally project."""
 
-    def __init__(self, factory: sessionmaker[Session], *, sync_project: bool = True) -> None:
+    def __init__(
+        self,
+        factory: sessionmaker[Session],
+        *,
+        sync_project: bool = True,
+        embedder: HashingEmbedder | None = None,
+    ) -> None:
         self._factory = factory
         self._sync_project = sync_project
+        self._embedder = embedder or HashingEmbedder()
 
     def ingest(self, command: IngestEventCommand) -> IngestResult:
         session = self._factory()
         try:
-            uow = SqlAlchemyUnitOfWork(session)
+            uow = SqlAlchemyUnitOfWork(session, embedder=self._embedder)
             service = IngestService(uow.events, uow.outbox, uow.consent)
             result = service.ingest(command)
             if self._sync_project and result.created:
@@ -76,14 +86,19 @@ class PostgresIngestGateway:
 class OutboxProjector:
     """Drain pending outbox jobs into session/timeline/memory projections."""
 
-    def __init__(self, factory: sessionmaker[Session]) -> None:
+    def __init__(
+        self,
+        factory: sessionmaker[Session],
+        embedder: HashingEmbedder | None = None,
+    ) -> None:
         self._factory = factory
+        self._embedder = embedder or HashingEmbedder()
 
     def process_batch(self, limit: int = 50) -> int:
         session = self._factory()
         processed = 0
         try:
-            uow = SqlAlchemyUnitOfWork(session)
+            uow = SqlAlchemyUnitOfWork(session, embedder=self._embedder)
             claimed = uow.outbox.claim_batch(limit=limit)
             for outbox_id, event_id, _job in claimed:
                 try:
@@ -91,7 +106,6 @@ class OutboxProjector:
                     if envelope is None:
                         uow.outbox.mark_failed(outbox_id, "event missing")
                         continue
-                    # Find offset via idempotency lookup
                     existing = uow.events.get_by_idempotency(
                         envelope.workspace_id, envelope.idempotency_key.value
                     )
@@ -105,7 +119,7 @@ class OutboxProjector:
                     uow.memory.index_event(envelope)
                     uow.outbox.mark_published(outbox_id)
                     processed += 1
-                except Exception as exc:  # noqa: BLE001 - worker must continue batch
+                except Exception as exc:  # noqa: BLE001
                     uow.outbox.mark_failed(outbox_id, str(exc))
             session.commit()
             return processed
