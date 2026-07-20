@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: chronicle
       POSTGRES_PASSWORD: chronicle
@@ -33,9 +33,12 @@ services:
       - "8000:8000"
     environment:
       CHRONICLE_ENV: local
-      CHRONICLE_AUTH_MODE: dev
       CHRONICLE_STORE: postgres
       CHRONICLE_SYNC_PROJECT: "true"
+      CHRONICLE_AUTH_MODE: token
+      CHRONICLE_BOOTSTRAP_TOKEN: change-me-bootstrap
+      CHRONICLE_AUTH_PEPPER: change-me-pepper
+      EMBEDDING_PROVIDER: hashing
       DATABASE_URL: postgresql+psycopg://chronicle:chronicle@postgres:5432/chronicle
       REDIS_URL: redis://redis:6379/0
     depends_on:
