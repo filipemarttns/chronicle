@@ -8,7 +8,7 @@ license = { text = "MIT" }
 authors = [{ name = "Filipe Martins", email = "filipemarttns@gmail.com" }]
 dependencies = [
   "fastapi>=0.115.0",
-  "uvicorn[standard]>=0.32.0",
+  "uvicorn[standard]>=0.51.0",
   "pydantic>=2.10.0",
   "httpx>=0.28.0",
   "sqlalchemy>=2.0.36",
