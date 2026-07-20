@@ -8,7 +8,7 @@ Chronicle is an open-source, self-hosted **Developer Memory Engine**. Support is
 
 1. Read the [README.md](README.md) Quick Start.
 2. Confirm your issue is not already answered in [DEVELOPMENT.md](DEVELOPMENT.md) or [ARCHITECTURE.md](ARCHITECTURE.md).
-3. Search [GitHub Issues](https://github.com/chronicle-dev/chronicle/issues) and [Discussions](https://github.com/chronicle-dev/chronicle/discussions).
+3. Search [GitHub Issues](https://github.com/filipemarttns/chronicle/issues).
 4. Reproduce on the latest released version or current `main` when possible.
 5. Redact secrets, tokens, private URLs, and personal file paths from all logs and screenshots.
 
@@ -16,11 +16,10 @@ Chronicle is an open-source, self-hosted **Developer Memory Engine**. Support is
 
 | Channel | Use for | Do not use for |
 | --- | --- | --- |
-| GitHub Discussions | How-to questions, design clarification, roadmap feedback | Vulnerability reports |
 | GitHub Issues | Confirmed bugs, actionable feature requests | Vague troubleshooting without details |
 | Pull requests | Fixes and improvements you are contributing | Drive-by “please implement X for me” without context |
-| security@chronicle.dev | Security vulnerabilities | General product questions |
-| conduct@chronicle.dev | Code of Conduct violations | Technical support |
+| [Security Advisories](https://github.com/filipemarttns/chronicle/security/advisories/new) | Security vulnerabilities | General product questions |
+| filipemarttns@gmail.com | Code of Conduct reports (subject `[Chronicle conduct]`) | Routine technical support |
 
 Maintainers may convert Issues to Discussions (or vice versa) when the channel is wrong.
 

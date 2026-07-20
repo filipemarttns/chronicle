@@ -128,7 +128,7 @@ Operator-facing migration steps belong in the release notes, not only in commit 
 | Artifact | Tag pattern |
 | --- | --- |
 | Git tag | `v1.4.2` |
-| Container image | `ghcr.io/chronicle-dev/chronicle-api:1.4.2` |
+| Container image | `ghcr.io/filipemarttns/chronicle-api:<version>` (when published) |
 | Compose bundle | referenced by git tag |
 | VS Code extension | marketplace version aligned with semver policy |
 | Desktop installers | `Chronicle-1.4.2-<platform>` |

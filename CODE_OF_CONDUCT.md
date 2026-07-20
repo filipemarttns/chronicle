@@ -47,7 +47,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at:
 
-**conduct@chronicle.dev**
+Reports go to **filipemarttns@gmail.com** with subject `[Chronicle conduct]`.
 
 All complaints will be reviewed and investigated promptly and fairly.
 

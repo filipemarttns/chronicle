@@ -21,9 +21,11 @@ Exact version numbers are published with GitHub Releases and annotated tags. See
 
 ### Preferred reporting channel
 
-Email: **security@chronicle.dev**
+Use [GitHub Security Advisories](https://github.com/filipemarttns/chronicle/security/advisories/new) (**Report a vulnerability** on the Security tab).
 
-If GitHub Security Advisories are enabled on the repository, you may also use **Report a vulnerability** on the Security tab.
+You may also email **filipemarttns@gmail.com** with the subject prefix `[Chronicle security]`.
+
+Do not open a public GitHub issue for security vulnerabilities.
 
 ### What to include
 
@@ -106,7 +108,7 @@ Detailed threat models, retention policies, and deployment hardening guides belo
 If you accidentally commit a secret:
 
 1. Rotate the credential immediately.
-2. Notify **security@chronicle.dev**.
+2. Notify maintainers via GitHub Security Advisories or filipemarttns@gmail.com.
 3. Open a non-public report describing where it appeared and for how long.
 4. Do not assume history rewrite alone is sufficient once a secret has been pushed.
 
@@ -134,9 +136,9 @@ Chronicle does not currently operate a paid bug bounty program. High-quality rep
 
 | Topic | Contact |
 | --- | --- |
-| Vulnerability reports | security@chronicle.dev |
-| Security process questions | security@chronicle.dev |
-| Code of Conduct | conduct@chronicle.dev |
+| Vulnerability reports | GitHub Security Advisories / filipemarttns@gmail.com |
+| Security process questions | filipemarttns@gmail.com |
+| Code of Conduct | filipemarttns@gmail.com |
 | Maintainer escalation | See [MAINTAINERS.md](MAINTAINERS.md) |
 
 This policy may evolve as the project approaches stable releases. Material changes will be noted in release communications.

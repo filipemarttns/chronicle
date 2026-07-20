@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Timeline serialization for slotted dataclass read models
 - Short-query memory search when hashing embeddings alone scored near zero
+- CORS for local web console origins
+- Root Compose entrypoint and API smoke script for the public quick start
 
 ## [0.1.0-rc.1] - 2026-07-15
 

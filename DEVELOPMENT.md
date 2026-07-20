@@ -50,7 +50,7 @@ Dependency rule: `packages/domain` must not import frameworks or drivers.
 ## 4. First-time setup
 
 ```bash
-git clone https://github.com/chronicle-dev/chronicle.git
+git clone https://github.com/filipemarttns/chronicle.git
 cd chronicle
 cp .env.example .env
 ```
@@ -62,6 +62,8 @@ Edit `.env` for local secrets. Never commit `.env`.
 ```bash
 docker compose up --build
 ```
+
+Root [`compose.yaml`](compose.yaml) includes `deploy/docker/docker-compose.yml`. Local stacks default to `CHRONICLE_AUTH_MODE=dev`.
 
 Typical local ports:
 

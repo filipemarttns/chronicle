@@ -1,10 +1,17 @@
 # Chronicle
 
+[![CI](https://github.com/filipemarttns/chronicle/actions/workflows/ci.yml/badge.svg)](https://github.com/filipemarttns/chronicle/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
+[![Status](https://img.shields.io/badge/status-0.1%20RC-orange.svg)](CHANGELOG.md)
+
 **Developer Memory Engine**
 
-Chronicle records engineering activity across editors, terminals, browsers, version control, and AI assistants, then transforms years of work into a searchable and replayable knowledge graph.
+Chronicle records engineering activity and turns it into a searchable, replayable memory layer for individuals and teams.
 
-Engineers lose institutional context every time a teammate leaves, a branch goes cold, or a decision is buried in chat history. Chronicle treats development activity as first-class data: capture it once, query it forever, and reconstruct the reasoning behind every change.
+> **Status:** early release candidate (`0.1.0-rc.1`). The local stack below runs today. Broader capture surfaces, knowledge graph, and production OIDC are on the [roadmap](ROADMAP.md)—not all README vision items are shipped yet.
+
+Engineers lose institutional context when teammates leave, branches go cold, or decisions bury themselves in chat. Chronicle treats development activity as first-class data: capture it once, query it later, and reconstruct the reasoning behind a change.
 
 ---
 
@@ -12,13 +19,13 @@ Engineers lose institutional context every time a teammate leaves, a branch goes
 
 Software organizations accumulate code. They rarely accumulate *understanding*.
 
-Chronicle exists to close that gap. It builds a durable memory layer for individual developers and engineering teams—one that preserves not only what changed, but *why* it changed, *how* it was explored, and *which* signals led to the final decision.
+Chronicle closes that gap with a durable memory layer—preserving not only what changed, but *why* it changed, *how* it was explored, and which signals led to the decision.
 
-The long-term goal is a local-first memory substrate that can power timeline replay, semantic search, historical debugging, developer analytics, and eventually personalized AI assistants grounded in a developer's actual work history.
+The long-term goal is a local-first substrate for timeline replay, semantic search, historical debugging, developer analytics, and assistants grounded in real work history.
 
 ## Problem Statement
 
-Modern development produces a continuous stream of high-signal artifacts that are discarded or siloed:
+Modern development produces high-signal artifacts that are discarded or siloed:
 
 | Signal | Typical fate |
 | --- | --- |
@@ -30,40 +37,24 @@ Modern development produces a continuous stream of high-signal artifacts that ar
 | AI assistant conversations | Locked inside vendor UIs |
 | Architecture decisions | Scattered across docs, issues, and memory |
 
-Without a unifying model, engineers re-derive context repeatedly. Onboarding takes months. Incident response depends on tribal knowledge. AI tools hallucinate because they lack access to the real history of a codebase.
+Without a unifying model, engineers re-derive context repeatedly. Chronicle treats every signal as an **event**, groups events into **sessions**, indexes them for **retrieval**, and exposes them through a **timeline** (and, later, a knowledge graph).
 
-Chronicle addresses this by treating every engineering signal as an **event**, grouping events into **sessions**, indexing them for **semantic retrieval**, and exposing them through a **timeline** and **knowledge graph**.
+## What works today
 
-## Features
+| Area | Available now |
+| --- | --- |
+| API | Ingest, timeline replay, search, consent, sessions, analytics summary, sync push/pull |
+| Auth | `dev` (open local) and `token` (hashed workspace credentials + bootstrap) |
+| Persistence | In-memory store or PostgreSQL + Alembic; Compose uses pgvector |
+| Search | Hashing embeddings (CI-safe) with hybrid scoring; ANN path when pgvector is present |
+| Web console | Timeline replay and search against the API |
+| Workers | Celery outbox drain |
+| MCP helpers | Tool-shaped functions for search/timeline/session summary (prototype) |
+| VS Code extension | Emits `editor.file.opened` over HTTP |
 
-### Capture
+## Planned (see ROADMAP)
 
-- **Editor activity** — VS Code and Cursor file opens, edits, selections, diagnostics, and extension events
-- **Terminal commands** — shell invocations, exit codes, working directories, and duration
-- **Git history** — commits, branches, merges, and authorship correlated with active sessions
-- **Pull requests** — review threads, CI status, and merge outcomes
-- **Browser history** — opt-in capture of research pages linked to active work
-- **AI interactions** — assistant prompts and responses when integrations are enabled
-- **Build and runtime signals** — compiler output, test results, and stack traces
-- **Architecture decisions** — ADR ingestion and decision timeline linkage
-
-### Memory and retrieval
-
-- **Timeline replay** — reconstruct an engineering session second-by-second
-- **Semantic search** — local embeddings over events, files, and decisions via pgvector
-- **Knowledge graph** — entities (files, symbols, PRs, people, decisions) and their relationships
-- **Session reconstruction** — cluster activity into coherent work units
-- **Historical debugging** — ask “what was I doing when this broke?” and get a grounded answer
-- **Developer analytics** — focus time, context switches, review load, and productivity metrics
-
-### Platform
-
-- **Event sourcing** — append-only event log as the system of record
-- **CQRS** — separate write and read models optimized for ingestion and query
-- **Local-first embeddings** — vectors computed and stored under operator control
-- **Multi-device sync** — merge sessions across machines with conflict-aware replication
-- **MCP support** — expose Chronicle memory to Model Context Protocol clients
-- **AI clone foundation** — structured memory suitable for training or grounding personal assistants
+Terminal/git/PR/browser/AI capture depth, knowledge graph, OIDC, real embedding models, multi-device sync hardening, and a full desktop control plane.
 
 ## Architecture Overview
 
@@ -111,7 +102,7 @@ Chronicle follows **Hexagonal Architecture** and **Domain-Driven Design**, with 
 | Async processing | Embeddings, indexing, graph updates, sync | Celery, Redis |
 | Experience | Timeline UI, search, analytics, MCP | Next.js, Tauri |
 
-For the full design, see [ARCHITECTURE.md](ARCHITECTURE.md), the [`docs/`](docs/README.md) tree, and the Phase 3 implementation contract under [`docs/design/`](docs/design/README.md).
+See [ARCHITECTURE.md](ARCHITECTURE.md), [`docs/`](docs/README.md), and [`docs/design/`](docs/design/README.md).
 
 ## Technology Stack
 
@@ -119,11 +110,11 @@ For the full design, see [ARCHITECTURE.md](ARCHITECTURE.md), the [`docs/`](docs/
 | --- | --- |
 | Backend | Python 3.14, FastAPI, SQLAlchemy, Alembic, Celery |
 | Data | PostgreSQL, pgvector, Redis |
-| Frontend | Next.js, TypeScript, Tailwind CSS |
-| Desktop | Tauri |
-| Extensions | VS Code / Cursor, Chromium-compatible browser extension |
+| Frontend | Next.js, TypeScript |
+| Desktop | Tauri (stub control plane) |
+| Extensions | VS Code / Cursor, Chromium-compatible browser extension (early) |
 | Infrastructure | Docker, Docker Compose, GitHub Actions |
-| Testing | Pytest, Playwright, Vitest |
+| Testing | Pytest (primary); broader web/e2e suites planned |
 
 ## Installation
 
@@ -131,13 +122,12 @@ For the full design, see [ARCHITECTURE.md](ARCHITECTURE.md), the [`docs/`](docs/
 
 - Docker 24+ and Docker Compose v2
 - Python 3.14+ (for local backend development)
-- Node.js 22+ and pnpm 9+ (for web, desktop, and extensions)
-- Rust toolchain (for Tauri desktop builds)
+- Node.js 22+ (for the web console)
 
 ### Clone
 
 ```bash
-git clone https://github.com/chronicle-dev/chronicle.git
+git clone https://github.com/filipemarttns/chronicle.git
 cd chronicle
 ```
 
@@ -148,7 +138,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Services start on:
+The root [`compose.yaml`](compose.yaml) includes [`deploy/docker/docker-compose.yml`](deploy/docker/docker-compose.yml). Local Compose defaults to `CHRONICLE_AUTH_MODE=dev` so the console can call the API without a bearer token.
+
+Services:
 
 | Service | URL |
 | --- | --- |
@@ -158,55 +150,46 @@ Services start on:
 | PostgreSQL | localhost:5432 |
 | Redis | localhost:6379 |
 
-Verify health:
+```bash
+curl -s http://localhost:8000/health
+```
+
+Optional smoke (API must be running):
 
 ```bash
-curl -s http://localhost:8000/health | jq
+python scripts/smoke_api.py
 ```
 
 ### Local development without containers
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for host-native workflows, database migrations, worker processes, and extension loading.
+See [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Quick Start
 
-1. Start the stack with Docker Compose as shown above.
-2. Open the web console at http://localhost:3000 and complete first-run setup.
-3. Install the VS Code / Cursor extension from the `extensions/vscode` package (development build) or from the marketplace release channel when published.
-4. Enable capture categories you consent to (editor, terminal, git; browser and AI are opt-in).
-5. Work normally for a few minutes, then open **Timeline** to replay the session.
-6. Use **Search** to query natural-language questions such as “where did we change auth middleware last week?”
+1. Start the stack with Docker Compose.
+2. Open http://localhost:3000 — enter a workspace UUID and use Timeline / Search.
+3. (Optional) Load the VS Code extension from `extensions/vscode` in development mode.
+4. Ingest events via the API or extension; replay them on the timeline.
 
 ### Example: ingest a manual event
 
 ```bash
 curl -X POST http://localhost:8000/v1/events \
-  -H "Authorization: Bearer $CHRONICLE_API_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "type": "editor.file.opened",
-    "occurred_at": "2026-03-12T14:22:01Z",
-    "source": "vscode",
-    "payload": {
-      "path": "services/memory/src/indexer.py",
-      "language": "python",
-      "workspace_id": "ws_01HZX..."
-    }
-  }'
+  -d @scripts/fixtures/sample_event.json
 ```
 
-Issue `$CHRONICLE_API_TOKEN` via `POST /v1/auth/tokens` with `X-Chronicle-Bootstrap` when `CHRONICLE_AUTH_MODE=token` (see [DEVELOPMENT.md](DEVELOPMENT.md)). In `dev` mode, auth is open for local iteration.
+With `CHRONICLE_AUTH_MODE=token`, issue a bearer via `POST /v1/auth/tokens` and `X-Chronicle-Bootstrap` (see [DEVELOPMENT.md](DEVELOPMENT.md)), then add `-H "Authorization: Bearer $CHRONICLE_API_TOKEN"`.
 
 ### Example: semantic search
 
 ```bash
 curl -X POST http://localhost:8000/v1/search \
-  -H "Authorization: Bearer $CHRONICLE_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
+    "workspace_id": "11111111-1111-1111-1111-111111111111",
     "query": "pagination bug in events list endpoint",
-    "limit": 10,
-    "filters": { "time_range": "30d" }
+    "limit": 10
   }'
 ```
 
@@ -214,93 +197,32 @@ curl -X POST http://localhost:8000/v1/search \
 
 | Document | Description |
 | --- | --- |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, bounded contexts, and data flow |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Local setup, workflows, and tooling |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose changes and pass review |
-| [ROADMAP.md](ROADMAP.md) | Near-term and long-term product direction |
-| [SECURITY.md](SECURITY.md) | Vulnerability reporting and security posture |
-| [GOVERNANCE.md](GOVERNANCE.md) | Decision-making and maintainer roles |
-| [RELEASE.md](RELEASE.md) | Versioning, tagging, and release cadence |
-| [SUPPORT.md](SUPPORT.md) | Where to ask questions and report issues |
-| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community behavioral standards |
-| [MAINTAINERS.md](MAINTAINERS.md) | Active maintainers and ownership areas |
-
-Extended technical documentation lives under [`docs/`](docs/README.md): ADRs, threat models, diagrams, benchmarks, API contracts, and deployment guides.
-
-## Benchmarks
-
-Chronicle publishes reproducible benchmarks for ingestion throughput, search latency, and timeline reconstruction. Summary targets for a single-node development profile:
-
-| Workload | Target | Notes |
-| --- | --- | --- |
-| Event ingest (sync API) | ≥ 5,000 events/s | Batched writes, idempotent keys |
-| Embedding throughput | ≥ 200 chunks/s | Local model, CPU baseline |
-| Semantic search p95 | ≤ 120 ms | Top-10 over 1M vectors |
-| Timeline reconstruct (1h session) | ≤ 250 ms | Pre-projected read model |
-| Knowledge graph hop (2-depth) | ≤ 80 ms | Indexed adjacency |
-
-Methodology and machine profiles will be published under `docs/benchmarks/`. Numbers above are design targets used for capacity planning; measured results ship with each release candidate.
-
-## Roadmap
-
-High-level themes:
-
-1. **Foundation** — event model, ingestion, storage, and authentication
-2. **Memory** — embeddings, search, and session reconstruction
-3. **Experience** — timeline UI, desktop shell, and editor extensions
-4. **Intelligence** — MCP server, historical debugging assistants, analytics
-5. **Scale** — multi-device sync, multi-tenant hardening, federation
-
-Details: [ROADMAP.md](ROADMAP.md).
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Local workflows |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+| [ROADMAP.md](ROADMAP.md) | Milestones |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting |
+| [CHANGELOG.md](CHANGELOG.md) | Release notes |
+| [`docs/`](docs/README.md) | ADRs, design, deployment |
 
 ## Contributing
 
-Contributions are welcome from engineers who care about developer tooling, information retrieval, and durable systems design.
-
-Before opening a pull request:
-
-1. Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [docs/standards/](docs/standards/README.md).
-2. Search existing issues and discussions for duplicates.
-3. Open an issue for design-impacting changes before large implementations.
-4. Follow the repository's commit, testing, and documentation standards.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-Chronicle is released under the [MIT License](LICENSE).
-
-## Security
-
-Do not file security vulnerabilities as public GitHub issues.
-
-Report them according to [SECURITY.md](SECURITY.md). Sensitive engineering data captured by Chronicle must remain under the operator's control; the default deployment model is local-first and self-hosted.
-
-## Governance
-
-Chronicle is stewarded by the maintainers listed in [MAINTAINERS.md](MAINTAINERS.md), under the policies defined in [GOVERNANCE.md](GOVERNANCE.md).
-
-Significant technical decisions are recorded as Architecture Decision Records (ADRs) and require maintainer review.
+MIT — see [LICENSE](LICENSE).
 
 ## Citation
 
-If you use Chronicle in academic work, benchmarking studies, or published evaluations, please cite:
-
 ```bibtex
-@software{chronicle_developer_memory_engine,
-  title        = {Chronicle: A Developer Memory Engine},
+@software{chronicle2026,
+  title        = {Chronicle: Developer Memory Engine},
   author       = {Martins, Filipe and Chronicle Contributors},
   year         = {2026},
-  url          = {https://github.com/chronicle-dev/chronicle},
+  url          = {https://github.com/filipemarttns/chronicle},
   license      = {MIT}
 }
 ```
 
-## Maintainers
-
-See [MAINTAINERS.md](MAINTAINERS.md) for ownership areas and contact paths.
-
-Primary steward: **Filipe Martins**.
-
----
-
-Chronicle records the work. You keep the understanding.
-
+Also see [`CITATION.cff`](CITATION.cff).

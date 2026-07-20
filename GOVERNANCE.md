@@ -131,8 +131,8 @@ Emergency security releases may skip non-essential process steps but must not sk
 | GitHub Issues | Defects and concrete work items |
 | GitHub Discussions | Proposals and design dialogue |
 | Pull requests | Change review |
-| security@chronicle.dev | Vulnerabilities |
-| conduct@chronicle.dev | Code of Conduct reports |
+| Security | GitHub Security Advisories / filipemarttns@gmail.com |
+| Conduct | filipemarttns@gmail.com |
 
 Private maintainer communication is reserved for security, conduct, and personnel matters—not for hiding ordinary technical decisions.
 

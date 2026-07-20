@@ -8,7 +8,7 @@ Security vulnerabilities must be reported per [SECURITY.md](SECURITY.md), not vi
 
 | Name | GitHub | Focus |
 | --- | --- | --- |
-| Filipe Martins | [@filipemartins](https://github.com/filipemartins) | Project stewardship, architecture coherence, releases |
+| Filipe Martins | [@filipemarttns](https://github.com/filipemarttns) | Project stewardship, architecture coherence, releases |
 
 ## Area Maintainers
 
@@ -65,8 +65,8 @@ See the nomination process in [GOVERNANCE.md](GOVERNANCE.md). Sustained contribu
 | --- | --- |
 | General questions | GitHub Discussions |
 | Bugs and features | GitHub Issues |
-| Security | security@chronicle.dev |
-| Conduct | conduct@chronicle.dev |
+| Security | GitHub Security Advisories / filipemarttns@gmail.com |
+| Conduct | filipemarttns@gmail.com |
 | Maintainer nominations | Private email to the Lead Maintainer |
 
 ## Affiliation disclaimer

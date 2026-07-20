@@ -35,7 +35,7 @@ Companion to [SECURITY.md](../../SECURITY.md) and [docs/security/](../security/)
 
 ## Vulnerability handling
 
-Report via security@chronicle.dev — not public issues. Embargo and disclosure follow SECURITY.md.
+Report via GitHub Security Advisories or filipemarttns@gmail.com — not public issues. Embargo and disclosure follow SECURITY.md.
 
 ## CI expectations
 
