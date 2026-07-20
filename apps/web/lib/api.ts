@@ -1,7 +1,18 @@
 const API_URL = process.env.NEXT_PUBLIC_CHRONICLE_API_URL ?? "http://localhost:8000";
+const API_TOKEN = process.env.NEXT_PUBLIC_CHRONICLE_API_TOKEN ?? "";
 
 export function apiBase(): string {
   return API_URL.replace(/\/$/, "");
+}
+
+function authHeaders(extra?: HeadersInit): HeadersInit {
+  const headers: Record<string, string> = {
+    ...(extra as Record<string, string> | undefined),
+  };
+  if (API_TOKEN) {
+    headers.Authorization = `Bearer ${API_TOKEN}`;
+  }
+  return headers;
 }
 
 export type TimelineItem = {
@@ -25,7 +36,7 @@ export async function fetchReplay(workspaceId: string): Promise<TimelineItem[]> 
   const url = new URL(`${apiBase()}/v1/timelines/replay`);
   url.searchParams.set("workspace_id", workspaceId);
   url.searchParams.set("limit", "50");
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) {
     throw new Error(`timeline failed: ${res.status}`);
   }
@@ -36,7 +47,7 @@ export async function fetchReplay(workspaceId: string): Promise<TimelineItem[]> 
 export async function searchMemory(workspaceId: string, query: string): Promise<SearchHit[]> {
   const res = await fetch(`${apiBase()}/v1/search`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ workspace_id: workspaceId, query, limit: 20 }),
     cache: "no-store",
   });
@@ -50,7 +61,7 @@ export async function searchMemory(workspaceId: string, query: string): Promise<
 export async function enableEditorConsent(workspaceId: string): Promise<void> {
   const res = await fetch(`${apiBase()}/v1/consent`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       workspace_id: workspaceId,
       categories: {
