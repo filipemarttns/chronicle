@@ -1,0 +1,56 @@
+---
+name: Bug report
+description: Report a defect in Chronicle
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Search existing issues first.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong in one or two sentences?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps, commands, or API calls.
+      placeholder: |
+        1. docker compose up --build
+        2. curl ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: v0.1.0-rc.1 or commit SHA
+  - type: dropdown
+    id: store
+    attributes:
+      label: Store mode
+      options:
+        - memory
+        - postgres
+        - unsure
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      render: shell

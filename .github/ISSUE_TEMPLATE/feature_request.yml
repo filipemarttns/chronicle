@@ -1,0 +1,39 @@
+---
+name: Feature request
+description: Propose an enhancement to Chronicle
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem before the solution. Check ROADMAP.md for planned work.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What pain does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - API / ingest
+        - Persistence / search
+        - Web console
+        - Extensions
+        - Docs / DX
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

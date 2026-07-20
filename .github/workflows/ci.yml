@@ -21,4 +21,30 @@ jobs:
       - name: Test
         env:
           CHRONICLE_STORE: memory
+          CHRONICLE_AUTH_MODE: dev
+          PYTHONPATH: packages/domain/src:packages/application/src:packages/adapters/src:apps/api/src:apps/worker/src:apps/mcp/src
         run: python -m pytest -q
+
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose files
+        run: |
+          docker compose -f compose.yaml config >/dev/null
+          docker compose -f deploy/docker/docker-compose.yml config >/dev/null
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install and typecheck
+        run: |
+          npm install
+          npx tsc --noEmit
