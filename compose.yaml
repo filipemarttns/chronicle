@@ -1,0 +1,3 @@
+# Root Compose entrypoint. Paths inside the included file stay relative to deploy/docker/.
+include:
+  - path: deploy/docker/docker-compose.yml

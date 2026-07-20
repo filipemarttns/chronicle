@@ -35,9 +35,12 @@ services:
       CHRONICLE_ENV: local
       CHRONICLE_STORE: postgres
       CHRONICLE_SYNC_PROJECT: "true"
-      CHRONICLE_AUTH_MODE: token
-      CHRONICLE_BOOTSTRAP_TOKEN: change-me-bootstrap
-      CHRONICLE_AUTH_PEPPER: change-me-pepper
+      # Local Compose defaults to open auth so the web console works without bootstrap.
+      # Set CHRONICLE_AUTH_MODE=token (and issue a bearer) for a locked-down stack.
+      CHRONICLE_AUTH_MODE: ${CHRONICLE_AUTH_MODE:-dev}
+      CHRONICLE_BOOTSTRAP_TOKEN: ${CHRONICLE_BOOTSTRAP_TOKEN:-change-me-bootstrap}
+      CHRONICLE_AUTH_PEPPER: ${CHRONICLE_AUTH_PEPPER:-change-me-pepper}
+      CHRONICLE_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       EMBEDDING_PROVIDER: hashing
       DATABASE_URL: postgresql+psycopg://chronicle:chronicle@postgres:5432/chronicle
       REDIS_URL: redis://redis:6379/0
@@ -78,6 +81,7 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_CHRONICLE_API_URL: http://localhost:8000
+      NEXT_PUBLIC_CHRONICLE_API_TOKEN: ${NEXT_PUBLIC_CHRONICLE_API_TOKEN:-}
     depends_on:
       api:
         condition: service_healthy
