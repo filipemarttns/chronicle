@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from chronicle_api.auth import Principal, enforce_workspace, require_principal
 from chronicle_api.container import AppContainer, get_container, reset_container_for_tests
 from chronicle_application.ingest import IdempotencyConflictError, IngestEventCommand
 from chronicle_domain.shared.ids import ConsentDenied, DomainValidationError
@@ -75,6 +76,12 @@ class SyncPullRequest(BaseModel):
     limit: int = Field(default=100, ge=1, le=500)
 
 
+class IssueTokenRequest(BaseModel):
+    workspace_id: UUID
+    actor_id: UUID
+    label: str = "default"
+
+
 def container_dep() -> AppContainer:
     return get_container()
 
@@ -89,12 +96,57 @@ def ready(container: AppContainer = Depends(container_dep)) -> dict[str, Any]:
     return container.readiness()
 
 
+@app.post("/v1/auth/tokens")
+def issue_token(
+    body: IssueTokenRequest,
+    container: AppContainer = Depends(container_dep),
+    x_chronicle_bootstrap: str | None = Header(default=None, alias="X-Chronicle-Bootstrap"),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Issue a workspace-scoped API token.
+
+    In ``token`` auth mode, callers must present ``X-Chronicle-Bootstrap`` matching
+    ``CHRONICLE_BOOTSTRAP_TOKEN``, or an existing valid bearer token for the same workspace.
+    """
+
+    if container.settings.auth_mode == "token":
+        bootstrap = container.settings.bootstrap_token
+        allowed = bool(bootstrap) and x_chronicle_bootstrap == bootstrap
+        if not allowed and authorization and authorization.lower().startswith("bearer "):
+            record = container.resolve_token(authorization.split(" ", 1)[1].strip())
+            allowed = record is not None and record.workspace_id == body.workspace_id
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "error": {
+                        "code": "unauthorized",
+                        "message": "Bootstrap or workspace token required to issue credentials",
+                        "correlation_id": "auth",
+                    }
+                },
+            )
+    issued = container.issue_credential(
+        workspace_id=body.workspace_id, actor_id=body.actor_id, label=body.label
+    )
+    return {
+        "credential_id": str(issued.credential_id),
+        "workspace_id": str(issued.workspace_id),
+        "actor_id": str(issued.actor_id),
+        "token": issued.token,
+        "label": issued.label,
+        "created_at": issued.created_at.isoformat(),
+    }
+
+
 @app.post("/v1/events", response_model=EventIngestResponse)
 def ingest_event(
     body: EventIngestRequest,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> EventIngestResponse:
+    enforce_workspace(principal, body.workspace_id)
     key = idempotency_key or body.idempotency_key
     command = IngestEventCommand(
         type=body.type,
@@ -159,7 +211,9 @@ def replay_timeline(
     limit: int = 50,
     after_offset: int = 0,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
 ) -> dict[str, Any]:
+    enforce_workspace(principal, workspace_id)
     items = container.replay(workspace_id, limit=limit, after_offset=after_offset)
     return {
         "items": [asdict(item) for item in items],
@@ -171,7 +225,9 @@ def replay_timeline(
 def search_memory(
     body: SearchRequest,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
 ) -> dict[str, Any]:
+    enforce_workspace(principal, body.workspace_id)
     hits = container.search(body.workspace_id, body.query, limit=body.limit)
     return {
         "hits": [
@@ -183,7 +239,7 @@ def search_memory(
             }
             for hit in hits
         ],
-        "model_id": "token-overlap-v1",
+        "model_id": container.embedder.model_id,
     }
 
 
@@ -191,7 +247,9 @@ def search_memory(
 def get_consent(
     workspace_id: UUID,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
 ) -> dict[str, Any]:
+    enforce_workspace(principal, workspace_id)
     policy = container.get_consent(workspace_id)
     return {
         "workspace_id": str(workspace_id),
@@ -203,7 +261,9 @@ def get_consent(
 def put_consent(
     body: ConsentUpdateRequest,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
 ) -> dict[str, Any]:
+    enforce_workspace(principal, body.workspace_id)
     policy = container.put_consent(body.workspace_id, body.categories)
     return {
         "workspace_id": str(body.workspace_id),
@@ -215,7 +275,9 @@ def put_consent(
 def list_sessions(
     workspace_id: UUID,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
 ) -> dict[str, Any]:
+    enforce_workspace(principal, workspace_id)
     sessions = container.list_sessions(workspace_id)
     return {
         "items": [
@@ -238,9 +300,11 @@ def list_sessions(
 def analytics_summary(
     workspace_id: UUID,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
     from_time: datetime = Query(..., alias="from"),
     to_time: datetime = Query(..., alias="to"),
 ) -> dict[str, Any]:
+    enforce_workspace(principal, workspace_id)
     summary = container.analytics_summary(workspace_id, from_time, to_time)
     return {
         "workspace_id": summary.workspace_id,
@@ -254,7 +318,9 @@ def analytics_summary(
 def sync_push(
     body: SyncPushRequest,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
 ) -> dict[str, Any]:
+    enforce_workspace(principal, body.workspace_id)
     commands = [
         IngestEventCommand(
             type=event.type,
@@ -296,7 +362,9 @@ def sync_push(
 def sync_pull(
     body: SyncPullRequest,
     container: AppContainer = Depends(container_dep),
+    principal: Principal = Depends(require_principal),
 ) -> dict[str, Any]:
+    enforce_workspace(principal, body.workspace_id)
     rows, next_cursor = container.sync_pull(
         body.workspace_id, body.cursor, limit=body.limit
     )

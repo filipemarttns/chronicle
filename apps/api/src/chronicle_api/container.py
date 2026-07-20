@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from chronicle_adapters.memory import (
     InMemoryConsentPolicyStore,
+    InMemoryCredentialStore,
     InMemoryEventStore,
     InMemoryOutbox,
     InMemorySessionRepository,
@@ -24,10 +25,13 @@ from chronicle_adapters.persistence import (
 )
 from chronicle_adapters.persistence.repositories import (
     SqlAlchemyConsentStore,
+    SqlAlchemyCredentialStore,
     SqlAlchemyMemoryIndex,
     SqlAlchemyTimelineStore,
 )
 from chronicle_api.config import Settings
+from chronicle_application.auth import CredentialService, IssuedCredential
+from chronicle_application.embeddings import HashingEmbedder
 from chronicle_application.ingest import IngestEventCommand, IngestResult, IngestService
 from chronicle_application.memory import MemoryIndex, SearchHit
 from chronicle_application.session_projection import SessionProjector
@@ -43,14 +47,22 @@ class AppContainer:
     _session_factory: sessionmaker[Session] | None = None
     _pg_ingest: PostgresIngestGateway | None = None
     _outbox_projector: OutboxProjector | None = None
+    credential_service: CredentialService = field(init=False)
+    credentials: InMemoryCredentialStore = field(default_factory=InMemoryCredentialStore)
+    embedder: HashingEmbedder = field(init=False)
     store: InMemoryEventStore = field(default_factory=InMemoryEventStore)
     outbox: InMemoryOutbox = field(default_factory=InMemoryOutbox)
     consent: InMemoryConsentPolicyStore = field(default_factory=InMemoryConsentPolicyStore)
     sessions: InMemorySessionRepository = field(default_factory=InMemorySessionRepository)
     timeline: TimelineProjector = field(default_factory=TimelineProjector)
-    memory: MemoryIndex = field(default_factory=MemoryIndex)
+    memory: MemoryIndex = field(init=False)
     ingest_service: IngestService | None = None
     session_projector: SessionProjector | None = None
+
+    def __post_init__(self) -> None:
+        self.credential_service = CredentialService(pepper=self.settings.auth_pepper)
+        self.embedder = HashingEmbedder(dims=self.settings.embedding_dims)
+        self.memory = MemoryIndex(embedder=self.embedder)
 
     def configure(self) -> None:
         if self.settings.store_mode == "postgres":
@@ -58,9 +70,13 @@ class AppContainer:
             create_all(engine)
             self._session_factory = create_session_factory(engine)
             self._pg_ingest = PostgresIngestGateway(
-                self._session_factory, sync_project=self.settings.sync_project
+                self._session_factory,
+                sync_project=self.settings.sync_project,
+                embedder=self.embedder,
             )
-            self._outbox_projector = OutboxProjector(self._session_factory)
+            self._outbox_projector = OutboxProjector(
+                self._session_factory, embedder=self.embedder
+            )
             self.mode = "postgres"
             return
         self.ingest_service = IngestService(self.store, self.outbox, self.consent)
@@ -72,8 +88,9 @@ class AppContainer:
         self.outbox = InMemoryOutbox()
         self.consent = InMemoryConsentPolicyStore()
         self.sessions = InMemorySessionRepository()
+        self.credentials = InMemoryCredentialStore()
         self.timeline = TimelineProjector()
-        self.memory = MemoryIndex()
+        self.memory = MemoryIndex(embedder=self.embedder)
         self.ingest_service = IngestService(self.store, self.outbox, self.consent)
         self.session_projector = SessionProjector(self.sessions)
         self.mode = "memory"
@@ -114,11 +131,44 @@ class AppContainer:
         if self.mode == "postgres" and self._session_factory is not None:
             session = self._session_factory()
             try:
-                index = SqlAlchemyMemoryIndex(session)
+                index = SqlAlchemyMemoryIndex(
+                    session, embedder=self.embedder, use_pgvector=True
+                )
                 return index.search(query, workspace_id=workspace_id, limit=limit)
             finally:
                 session.close()
         return self.memory.search(query, limit=limit)
+
+    def issue_credential(
+        self, *, workspace_id: UUID, actor_id: UUID, label: str = "default"
+    ) -> IssuedCredential:
+        issued = self.credential_service.issue(
+            workspace_id=workspace_id, actor_id=actor_id, label=label
+        )
+        if self.mode == "postgres" and self._session_factory is not None:
+            session = self._session_factory()
+            try:
+                SqlAlchemyCredentialStore(session, self.credential_service).save_issued(issued)
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
+            finally:
+                session.close()
+        else:
+            self.credentials.save_issued(issued)
+        return issued
+
+    def resolve_token(self, raw_token: str) -> Any | None:
+        if self.mode == "postgres" and self._session_factory is not None:
+            session = self._session_factory()
+            try:
+                return SqlAlchemyCredentialStore(
+                    session, self.credential_service
+                ).find_by_raw_token(raw_token)
+            finally:
+                session.close()
+        return self.credentials.find_by_raw_token(raw_token, self.credential_service)
 
     def get_consent(self, workspace_id: UUID) -> ConsentPolicy:
         if self.mode == "postgres" and self._session_factory is not None:
@@ -256,8 +306,8 @@ def get_container() -> AppContainer:
     return _container
 
 
-def reset_container_for_tests() -> AppContainer:
+def reset_container_for_tests(*, auth_mode: str = "dev") -> AppContainer:
     global _container
-    _container = AppContainer(settings=Settings(store_mode="memory"))
+    _container = AppContainer(settings=Settings(store_mode="memory", auth_mode=auth_mode))
     _container.configure()
     return _container
